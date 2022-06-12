@@ -54,24 +54,34 @@ fn main() -> Result<()> {
     let renderer: IDWriteTextRenderer1 =
         SvgTextRenderer::new(document.width, document.height).into();
 
-    for body in document.body.iter() {
+    for frame in document.frames.iter() {
         let mut analyzer = DocumentAnalyzer::new();
-        analyzer.analyze(&body.contents);
+        analyzer.analyze(&frame.contents);
 
         let text_layout = analyzer.create_text_layout(
             factory.clone(),
             format.clone(),
             document.width,
             document.height,
-            body,
+            frame,
         )?;
+        {
+            let metrics = unsafe { text_layout.GetMetrics()? };
+            let (offset_x, offset_y) = DocumentAnalyzer::compute_layout_offset(
+                document.width,
+                document.height,
+                frame,
+                &metrics,
+            );
+            renderer.as_impl().set_offset(offset_x, offset_y);
+        }
         unsafe {
             text_layout.Draw(
                 null(),
                 renderer.clone(),
-                body.left.unwrap_or(0.0),
-                body.top.unwrap_or(0.0),
-            )?;
+                frame.left.unwrap_or(0.0),
+                frame.top.unwrap_or(0.0),
+            )?
         }
     }
 

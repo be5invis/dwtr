@@ -90,6 +90,8 @@ impl SvgDataStorage {
 pub(crate) struct SvgTextRenderer {
     canvas_width: f32,
     canvas_height: f32,
+    offset_x: RefCell<f32>,
+    offset_y: RefCell<f32>,
     store: RefCell<SvgDataStorage>,
 }
 
@@ -98,33 +100,17 @@ impl SvgTextRenderer {
         Self {
             canvas_width,
             canvas_height,
+            offset_x: RefCell::new(0.0),
+            offset_y: RefCell::new(0.0),
             store: RefCell::new(SvgDataStorage::new()),
         }
     }
-    fn get_color_from_brush(brush: &Option<IUnknown>) -> Option<String> {
-        match brush {
-            Some(brush) => match brush.cast::<ISvgColor>() {
-                Ok(color) => {
-                    let mut sink = csscolorparser::Color::default();
-                    unsafe {
-                        color
-                            .GetColor(&mut sink.r, &mut sink.g, &mut sink.b, &mut sink.a)
-                            .unwrap()
-                    };
-                    Some(sink.to_hex_string())
-                }
-                _ => None,
-            },
-            _ => None,
-        }
+
+    pub(crate) fn set_offset(&self, x: f32, y: f32) {
+        self.offset_x.replace(x);
+        self.offset_y.replace(y);
     }
-    fn add_path_def(&self, str: String) -> usize {
-        let mut store = self.store.borrow_mut();
-        store.add_path_def(str)
-    }
-    fn push_run(&self, run: SvgRun) {
-        self.store.borrow_mut().runs.push(run);
-    }
+
     pub(crate) fn into_xml(&self) -> Element {
         let store = self.store.borrow();
 
@@ -149,6 +135,31 @@ impl SvgTextRenderer {
             .append(defs)
             .append(glyphs)
             .build()
+    }
+
+    fn get_color_from_brush(brush: &Option<IUnknown>) -> Option<String> {
+        match brush {
+            Some(brush) => match brush.cast::<ISvgColor>() {
+                Ok(color) => {
+                    let mut sink = csscolorparser::Color::default();
+                    unsafe {
+                        color
+                            .GetColor(&mut sink.r, &mut sink.g, &mut sink.b, &mut sink.a)
+                            .unwrap()
+                    };
+                    Some(sink.to_hex_string())
+                }
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+    fn add_path_def(&self, str: String) -> usize {
+        let mut store = self.store.borrow_mut();
+        store.add_path_def(str)
+    }
+    fn push_run(&self, run: SvgRun) {
+        self.store.borrow_mut().runs.push(run);
     }
 }
 
@@ -253,8 +264,8 @@ impl IDWriteTextRenderer1_Impl for SvgTextRenderer {
             let color = Self::get_color_from_brush(client_drawing_effect);
 
             let mut run = SvgRun {
-                offset_x: baseline_origin_x,
-                offset_y: baseline_origin_y,
+                offset_x: baseline_origin_x + *self.offset_x.borrow(),
+                offset_y: baseline_origin_y + *self.offset_y.borrow(),
                 rotate_angle: dw_angle_to_angle(&orientation_angle, unsafe {
                     (*glyph_run).isSideways.as_bool()
                 }),

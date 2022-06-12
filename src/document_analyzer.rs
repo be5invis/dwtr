@@ -6,7 +6,10 @@ use windows::{
 };
 
 use crate::{
-    document::{string_to_tag, DocumentBody, DocumentContent, FontVariationValue, TextStyle},
+    document::{
+        string_to_tag, DocumentContent, DocumentFrame, FontVariationValue, HAlign, TextStyle,
+        VAlign,
+    },
     svg_color::{ISvgColor, SvgColorImpl},
 };
 
@@ -74,22 +77,22 @@ impl DocumentAnalyzer {
         format: IDWriteTextFormat,
         canvas_width: f32,
         canvas_height: f32,
-        db: &DocumentBody,
+        frame: &DocumentFrame,
     ) -> Result<IDWriteTextLayout1> {
         let layout = unsafe {
             factory.CreateTextLayout(
                 &self.text,
                 format,
-                db.right.unwrap_or(canvas_width) - db.left.unwrap_or(0.0),
-                db.bottom.unwrap_or(canvas_height) - db.bottom.unwrap_or(0.0),
+                frame.right.unwrap_or(canvas_width) - frame.left.unwrap_or(0.0),
+                frame.bottom.unwrap_or(canvas_height) - frame.bottom.unwrap_or(0.0),
             )?
         };
         let layout: IDWriteTextLayout1 = layout.cast()?;
 
         // Set alignment
-        unsafe { layout.SetTextAlignment(db.text_align.clone().into())? };
+        unsafe { layout.SetTextAlignment(frame.text_align.clone().into())? };
         // Set direction
-        let (read_dir, flow_dir) = db.writing_mode.clone().into();
+        let (read_dir, flow_dir) = frame.writing_mode.clone().into();
         unsafe { layout.SetReadingDirection(read_dir)? }
         unsafe { layout.SetFlowDirection(flow_dir)? }
 
@@ -159,6 +162,36 @@ impl DocumentAnalyzer {
             }
         }
         Ok(layout)
+    }
+
+    pub(crate) fn compute_layout_offset(
+        canvas_width: f32,
+        canvas_height: f32,
+        frame: &DocumentFrame,
+        metrics: &DWRITE_TEXT_METRICS,
+    ) -> (f32, f32) {
+        let factor_h = match frame.horizontal_align {
+            HAlign::Left => 0.0,
+            HAlign::Center => 0.5,
+            HAlign::Right => 1.0,
+        };
+        let factor_v = match frame.vertical_align {
+            VAlign::Top => 0.0,
+            VAlign::Center => 0.5,
+            VAlign::Bottom => 1.0,
+        };
+        let frame_left = frame.left.unwrap_or(0.0);
+        let frame_top = frame.top.unwrap_or(0.0);
+        let frame_right = frame.right.unwrap_or(canvas_width);
+        let frame_bottom = frame.bottom.unwrap_or(canvas_height);
+
+        let tm_cx = metrics.left + factor_h * metrics.width;
+        let tm_cy = metrics.top + factor_v * metrics.height;
+
+        let frame_cx = frame_left + factor_h * (frame_right - frame_left);
+        let frame_cy = frame_top + factor_v * (frame_bottom - frame_top);
+
+        (frame_cx - tm_cx, frame_cy - tm_cy)
     }
 }
 

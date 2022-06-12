@@ -13,7 +13,7 @@ pub(crate) struct Document {
     #[serde(default)]
     pub(crate) font_files: Vec<String>,
     #[serde(default)]
-    pub(crate) body: Vec<DocumentBody>,
+    pub(crate) frames: Vec<DocumentFrame>,
 }
 
 const fn default_width() -> f32 {
@@ -25,7 +25,7 @@ const fn default_height() -> f32 {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
-pub(crate) struct DocumentBody {
+pub(crate) struct DocumentFrame {
     pub(crate) left: Option<f32>,
     pub(crate) top: Option<f32>,
     pub(crate) right: Option<f32>,
