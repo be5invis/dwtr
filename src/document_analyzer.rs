@@ -46,9 +46,10 @@ impl DocumentAnalyzer {
                 self.sync_style_run_length()
             }
             DocumentContent::Style(s) => {
-                let mut last_style = self.style_stack.last().cloned().unwrap_or_default();
-                last_style.merge(s);
-                self.start_style_run(last_style);
+                if let Some(style) = self.style_stack.last_mut() {
+                    style.merge(s);
+                };
+                self.start_style_run(self.style_stack.last().cloned().unwrap_or_default());
             }
             DocumentContent::Embed(sub) => {
                 self.sync_style_run_length();
