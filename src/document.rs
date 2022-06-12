@@ -81,18 +81,19 @@ impl Style {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub(crate) enum FontStyle {
-    Upright,
-    Italic,
+    Normal,
     Oblique,
+    Italic,
 }
 
 impl Into<DWRITE_FONT_STYLE> for FontStyle {
     fn into(self) -> DWRITE_FONT_STYLE {
         match self {
-            FontStyle::Upright => DWRITE_FONT_STYLE_NORMAL,
-            FontStyle::Italic => DWRITE_FONT_STYLE_ITALIC,
+            FontStyle::Normal => DWRITE_FONT_STYLE_NORMAL,
             FontStyle::Oblique => DWRITE_FONT_STYLE_OBLIQUE,
+            FontStyle::Italic => DWRITE_FONT_STYLE_ITALIC,
         }
     }
 }
