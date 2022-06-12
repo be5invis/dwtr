@@ -45,7 +45,7 @@ pub(crate) enum DocumentContent {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "kebab-case")]
 pub(crate) struct Style {
     #[serde(default)]
     pub(crate) font_family: Option<String>,
