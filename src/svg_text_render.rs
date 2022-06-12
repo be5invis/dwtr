@@ -8,19 +8,7 @@ use std::{
 use windows::{
     core::{AsImpl, IUnknown, Interface, Result},
     Win32::Foundation::BOOL,
-    Win32::Graphics::Direct2D::Common::{ID2D1SimplifiedGeometrySink, D2D1_FILL_MODE},
-    Win32::Graphics::{
-        Direct2D::Common::{
-            ID2D1SimplifiedGeometrySink_Impl, D2D1_BEZIER_SEGMENT, D2D1_FIGURE_BEGIN,
-            D2D1_FIGURE_END, D2D1_FIGURE_END_CLOSED, D2D1_PATH_SEGMENT, D2D_POINT_2F,
-        },
-        DirectWrite::{
-            IDWriteInlineObject, IDWritePixelSnapping_Impl, IDWriteTextRenderer,
-            IDWriteTextRenderer_Impl, DWRITE_FONT_METRICS, DWRITE_GLYPH_RUN,
-            DWRITE_GLYPH_RUN_DESCRIPTION, DWRITE_MATRIX, DWRITE_MEASURING_MODE,
-            DWRITE_STRIKETHROUGH, DWRITE_UNDERLINE,
-        },
-    },
+    Win32::Graphics::{Direct2D::Common::*, DirectWrite::*},
 };
 
 use crate::svg_color::ISvgColor;
@@ -52,6 +40,7 @@ impl SvgGlyph {
 struct SvgRun {
     offset_x: f32,
     offset_y: f32,
+    rotate_angle: f32,
     color: Option<String>,
     glyphs: Vec<SvgGlyph>,
 }
@@ -60,7 +49,10 @@ impl SvgRun {
         Element::builder("g", SVG_NS)
             .attr(
                 "transform",
-                format!("translate({} {})", self.offset_x, self.offset_y),
+                format!(
+                    "translate({} {}) rotate({})",
+                    self.offset_x, self.offset_y, self.rotate_angle
+                ),
             )
             .attr("fill", self.color.clone().unwrap_or(String::from("black")))
             .append_all(self.glyphs.iter().map(|g| g.as_element()))
@@ -94,14 +86,18 @@ impl SvgDataStorage {
     }
 }
 
-#[windows::core::implement(IDWriteTextRenderer)]
+#[windows::core::implement(IDWriteTextRenderer1)]
 pub(crate) struct SvgTextRenderer {
+    canvas_width: f32,
+    canvas_height: f32,
     store: RefCell<SvgDataStorage>,
 }
 
 impl SvgTextRenderer {
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(canvas_width: f32, canvas_height: f32) -> Self {
         Self {
+            canvas_width,
+            canvas_height,
             store: RefCell::new(SvgDataStorage::new()),
         }
     }
@@ -146,6 +142,10 @@ impl SvgTextRenderer {
             .build();
 
         Element::builder("svg", SVG_NS)
+            .attr(
+                "viewBox",
+                format!("0 0 {} {}", self.canvas_width, self.canvas_height),
+            )
             .append(defs)
             .append(glyphs)
             .build()
@@ -176,9 +176,70 @@ impl IDWritePixelSnapping_Impl for SvgTextRenderer {
 impl IDWriteTextRenderer_Impl for SvgTextRenderer {
     fn DrawGlyphRun(
         &self,
+        client_drawing_context: *const c_void,
+        baseline_origin_x: f32,
+        baseline_origin_y: f32,
+        measuring_mode: DWRITE_MEASURING_MODE,
+        glyph_run: *const DWRITE_GLYPH_RUN,
+        glyph_run_description: *const DWRITE_GLYPH_RUN_DESCRIPTION,
+        client_drawing_effect: &Option<IUnknown>,
+    ) -> Result<()> {
+        self.DrawGlyphRun2(
+            client_drawing_context,
+            baseline_origin_x,
+            baseline_origin_y,
+            DWRITE_GLYPH_ORIENTATION_ANGLE_0_DEGREES,
+            measuring_mode,
+            glyph_run,
+            glyph_run_description,
+            client_drawing_effect,
+        )
+    }
+
+    fn DrawInlineObject(
+        &self,
+        _client_drawing_context: *const c_void,
+        _origin_x: f32,
+        _origin_y: f32,
+        _inline_object: &Option<IDWriteInlineObject>,
+        _is_sideways: BOOL,
+        _is_right_to_left: BOOL,
+        _client_drawing_effect: &Option<IUnknown>,
+    ) -> Result<()> {
+        Ok(())
+    }
+
+    fn DrawUnderline(
+        &self,
+        _client_drawing_context: *const c_void,
+        _baseline_origin_x: f32,
+        _baseline_origin_y: f32,
+        _underline: *const DWRITE_UNDERLINE,
+        _client_drawing_effect: &Option<IUnknown>,
+    ) -> Result<()> {
+        Ok(())
+    }
+
+    fn DrawStrikethrough(
+        &self,
+        _client_drawing_context: *const c_void,
+        _baseline_origin_x: f32,
+        _baseline_origin_y: f32,
+        _strike_through: *const DWRITE_STRIKETHROUGH,
+        _client_drawing_effect: &Option<IUnknown>,
+    ) -> Result<()> {
+        Ok(())
+    }
+}
+
+#[allow(non_snake_case)]
+impl IDWriteTextRenderer1_Impl for SvgTextRenderer {
+    fn DrawGlyphRun2(
+        &self,
         _client_drawing_context: *const c_void,
         baseline_origin_x: f32,
         baseline_origin_y: f32,
+        orientation_angle: DWRITE_GLYPH_ORIENTATION_ANGLE,
         _measuring_mode: DWRITE_MEASURING_MODE,
         glyph_run: *const DWRITE_GLYPH_RUN,
         _glyph_run_description: *const DWRITE_GLYPH_RUN_DESCRIPTION,
@@ -194,6 +255,9 @@ impl IDWriteTextRenderer_Impl for SvgTextRenderer {
             let mut run = SvgRun {
                 offset_x: baseline_origin_x,
                 offset_y: baseline_origin_y,
+                rotate_angle: dw_angle_to_angle(&orientation_angle, unsafe {
+                    (*glyph_run).isSideways.as_bool()
+                }),
                 color,
                 glyphs: Vec::new(),
             };
@@ -252,11 +316,12 @@ impl IDWriteTextRenderer_Impl for SvgTextRenderer {
         Ok(())
     }
 
-    fn DrawInlineObject(
+    fn DrawInlineObject2(
         &self,
         _client_drawing_context: *const c_void,
         _origin_x: f32,
         _origin_y: f32,
+        _orientation_angle: DWRITE_GLYPH_ORIENTATION_ANGLE,
         _inline_object: &Option<IDWriteInlineObject>,
         _is_sideways: BOOL,
         _is_right_to_left: BOOL,
@@ -265,22 +330,24 @@ impl IDWriteTextRenderer_Impl for SvgTextRenderer {
         Ok(())
     }
 
-    fn DrawUnderline(
+    fn DrawUnderline2(
         &self,
         _client_drawing_context: *const c_void,
         _baseline_origin_x: f32,
         _baseline_origin_y: f32,
+        _orientation_angle: DWRITE_GLYPH_ORIENTATION_ANGLE,
         _underline: *const DWRITE_UNDERLINE,
         _client_drawing_effect: &Option<IUnknown>,
     ) -> Result<()> {
         Ok(())
     }
 
-    fn DrawStrikethrough(
+    fn DrawStrikethrough2(
         &self,
         _client_drawing_context: *const c_void,
         _baseline_origin_x: f32,
         _baseline_origin_y: f32,
+        _orientation_angle: DWRITE_GLYPH_ORIENTATION_ANGLE,
         _strike_through: *const DWRITE_STRIKETHROUGH,
         _client_drawing_effect: &Option<IUnknown>,
     ) -> Result<()> {
@@ -363,4 +430,18 @@ impl ID2D1SimplifiedGeometrySink_Impl for SvgGeometrySink {
     fn Close(&self) -> Result<()> {
         Ok(())
     }
+}
+
+fn dw_angle_to_angle(angle: &DWRITE_GLYPH_ORIENTATION_ANGLE, is_sideways: bool) -> f32 {
+    let mut quarters = match angle {
+        &DWRITE_GLYPH_ORIENTATION_ANGLE_0_DEGREES => 0,
+        &DWRITE_GLYPH_ORIENTATION_ANGLE_90_DEGREES => 1,
+        &DWRITE_GLYPH_ORIENTATION_ANGLE_180_DEGREES => 2,
+        &DWRITE_GLYPH_ORIENTATION_ANGLE_270_DEGREES => 3,
+        _ => unreachable!(),
+    };
+    if is_sideways {
+        quarters = (1 + quarters) % 4
+    }
+    90.0 * (quarters as f32)
 }

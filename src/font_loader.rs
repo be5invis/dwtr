@@ -5,10 +5,7 @@ use crate::document::Document;
 use glob::glob;
 use windows::core::{Interface, Result};
 use windows::Win32::Foundation::BOOL;
-use windows::Win32::Graphics::DirectWrite::{
-    IDWriteFactory, IDWriteFactory3, IDWriteFontCollection1, DWRITE_FONT_FACE_TYPE,
-    DWRITE_FONT_FILE_TYPE, DWRITE_FONT_SIMULATIONS_NONE,
-};
+use windows::Win32::Graphics::DirectWrite::*;
 
 pub(crate) fn load_font_collection(
     factory: IDWriteFactory,

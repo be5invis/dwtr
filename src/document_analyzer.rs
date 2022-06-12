@@ -2,15 +2,11 @@ use std::ffi::OsString;
 
 use windows::{
     core::{Interface, Result},
-    Win32::Graphics::DirectWrite::{
-        IDWriteFactory, IDWriteTextFormat, IDWriteTextLayout, IDWriteTextLayout4,
-        DWRITE_FONT_AXIS_TAG, DWRITE_FONT_AXIS_VALUE, DWRITE_FONT_FEATURE, DWRITE_FONT_FEATURE_TAG,
-        DWRITE_FONT_STRETCH, DWRITE_FONT_WEIGHT, DWRITE_TEXT_RANGE,
-    },
+    Win32::Graphics::DirectWrite::*,
 };
 
 use crate::{
-    document::{string_to_tag, DocumentBody, DocumentContent, FontVariationValue, Style},
+    document::{string_to_tag, DocumentBody, DocumentContent, FontVariationValue, TextStyle},
     svg_color::{ISvgColor, SvgColorImpl},
 };
 
@@ -19,7 +15,7 @@ pub(crate) struct DocumentAnalyzer {
     // Text encoded in UTF-16
     text: Vec<u16>,
     style_runs: Vec<StyleRun>,
-    style_stack: Vec<Style>,
+    style_stack: Vec<TextStyle>,
 }
 
 impl DocumentAnalyzer {
@@ -35,7 +31,7 @@ impl DocumentAnalyzer {
             style_run.wch_end = self.text.len();
         }
     }
-    fn start_style_run(&mut self, style: Style) {
+    fn start_style_run(&mut self, style: TextStyle) {
         self.style_runs.push(StyleRun {
             wch_start: self.text.len(),
             wch_end: self.text.len(),
@@ -79,7 +75,7 @@ impl DocumentAnalyzer {
         canvas_width: f32,
         canvas_height: f32,
         db: &DocumentBody,
-    ) -> Result<IDWriteTextLayout> {
+    ) -> Result<IDWriteTextLayout1> {
         let layout = unsafe {
             factory.CreateTextLayout(
                 &self.text,
@@ -88,6 +84,16 @@ impl DocumentAnalyzer {
                 db.bottom.unwrap_or(canvas_height) - db.bottom.unwrap_or(0.0),
             )?
         };
+        let layout: IDWriteTextLayout1 = layout.cast()?;
+
+        // Set alignment
+        unsafe { layout.SetTextAlignment(db.text_align.clone().into())? };
+        // Set direction
+        let (read_dir, flow_dir) = db.writing_mode.clone().into();
+        unsafe { layout.SetReadingDirection(read_dir)? }
+        unsafe { layout.SetFlowDirection(flow_dir)? }
+
+        // Set text styles
         for style_run in self.style_runs.iter() {
             if style_run.wch_end <= style_run.wch_start {
                 continue;
@@ -118,6 +124,10 @@ impl DocumentAnalyzer {
                 let c = csscolorparser::parse(color).unwrap_or_default();
                 let brush: ISvgColor = SvgColorImpl::new(c).into();
                 unsafe { layout.SetDrawingEffect(brush, range.clone())? }
+            }
+            if let Some(lang) = &style.lang {
+                let lang = OsString::from(lang);
+                unsafe { layout.SetLocaleName(lang, range.clone())? }
             }
             if !style.font_feature_settings.is_empty() {
                 let typography = unsafe { factory.CreateTypography()? };
@@ -156,5 +166,5 @@ impl DocumentAnalyzer {
 struct StyleRun {
     wch_start: usize,
     wch_end: usize,
-    style: Style,
+    style: TextStyle,
 }

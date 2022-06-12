@@ -7,11 +7,7 @@ use structopt::StructOpt;
 use svg_text_render::SvgTextRenderer;
 use windows::{
     core::{AsImpl, Interface, Result},
-    Win32::Graphics::DirectWrite::{
-        DWriteCreateFactory, IDWriteFactory, IDWriteFactory7, IDWriteTextRenderer,
-        DWRITE_FACTORY_TYPE_SHARED, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL,
-        DWRITE_FONT_WEIGHT,
-    },
+    Win32::Graphics::DirectWrite::*,
 };
 
 use crate::{document_analyzer::DocumentAnalyzer, font_loader::load_font_collection};
@@ -55,7 +51,8 @@ fn main() -> Result<()> {
         )?
     };
 
-    let renderer: IDWriteTextRenderer = SvgTextRenderer::new().into();
+    let renderer: IDWriteTextRenderer1 =
+        SvgTextRenderer::new(document.width, document.height).into();
 
     for body in document.body.iter() {
         let mut analyzer = DocumentAnalyzer::new();
