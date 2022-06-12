@@ -1,15 +1,16 @@
 use std::ffi::OsString;
 
 use windows::{
-    core::Result,
+    core::{Interface, Result},
     Win32::Graphics::DirectWrite::{
-        IDWriteFactory, IDWriteTextFormat, IDWriteTextLayout, DWRITE_FONT_FEATURE,
-        DWRITE_FONT_FEATURE_TAG, DWRITE_FONT_STRETCH, DWRITE_FONT_WEIGHT, DWRITE_TEXT_RANGE,
+        IDWriteFactory, IDWriteTextFormat, IDWriteTextLayout, IDWriteTextLayout4,
+        DWRITE_FONT_AXIS_TAG, DWRITE_FONT_AXIS_VALUE, DWRITE_FONT_FEATURE, DWRITE_FONT_FEATURE_TAG,
+        DWRITE_FONT_STRETCH, DWRITE_FONT_WEIGHT, DWRITE_TEXT_RANGE,
     },
 };
 
 use crate::{
-    document::{string_to_tag, DocumentBody, DocumentContent, Style},
+    document::{string_to_tag, DocumentBody, DocumentContent, FontVariationValue, Style},
     svg_color::{ISvgColor, SvgColorImpl},
 };
 
@@ -128,6 +129,23 @@ impl DocumentAnalyzer {
                     unsafe { typography.AddFontFeature(&feature)? }
                 }
                 unsafe { layout.SetTypography(typography, range.clone())? }
+            }
+            if !style.font_variation_settings.is_empty() {
+                let mut axis_values: Vec<DWRITE_FONT_AXIS_VALUE> = Vec::new();
+                for (axis, value) in style.font_variation_settings.iter() {
+                    match &value {
+                        FontVariationValue::Set(x) => {
+                            axis_values.push(DWRITE_FONT_AXIS_VALUE {
+                                axisTag: DWRITE_FONT_AXIS_TAG(string_to_tag(axis)),
+                                value: *x,
+                            });
+                        }
+                        _ => {}
+                    }
+                }
+                if let Ok(layout4) = layout.cast::<IDWriteTextLayout4>() {
+                    unsafe { layout4.SetFontAxisValues(&axis_values, range.clone())? }
+                }
             }
         }
         Ok(layout)

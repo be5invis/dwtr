@@ -61,6 +61,8 @@ pub(crate) struct Style {
     pub(crate) color: Option<String>,
     #[serde(default)]
     pub(crate) font_feature_settings: BTreeMap<String, u32>,
+    #[serde(default)]
+    pub(crate) font_variation_settings: BTreeMap<String, FontVariationValue>,
 }
 
 impl Style {
@@ -73,6 +75,8 @@ impl Style {
         self.color = other.color.clone().or(self.color.clone());
         self.font_feature_settings
             .extend(other.font_feature_settings.clone());
+        self.font_variation_settings
+            .extend(other.font_variation_settings.clone());
     }
 }
 
@@ -91,6 +95,13 @@ impl Into<DWRITE_FONT_STYLE> for FontStyle {
             FontStyle::Oblique => DWRITE_FONT_STYLE_OBLIQUE,
         }
     }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub(crate) enum FontVariationValue {
+    Default,
+    Set(f32),
 }
 
 /// Convert a string to DW tag. Note that DW uses little endian.
