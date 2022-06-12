@@ -1,0 +1,27 @@
+[package]
+name = "dwtr"
+version = "0.1.0"
+
+edition = "2021"
+publish = false
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+glob = "0.3.0"
+minidom = "0.14.0"
+quick-xml = "^0.22"
+serde = {version = "^1.0.137", features = ["derive"]}
+serde_json = "^1.0.81"
+structopt = "^0.3.26"
+wchar = "0.11.0"
+
+[dependencies.windows]
+features = [
+  "alloc",
+  "implement",
+  "Win32_Foundation",
+  "Win32_Graphics_DirectWrite",
+  "Win32_Graphics_Direct2D_Common",
+]
+version = "0.37.0"
