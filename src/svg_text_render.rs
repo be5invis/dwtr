@@ -10,12 +10,9 @@ use windows::{
     Win32::Foundation::BOOL,
     Win32::Graphics::Direct2D::Common::{ID2D1SimplifiedGeometrySink, D2D1_FILL_MODE},
     Win32::Graphics::{
-        Direct2D::{
-            Common::{
-                ID2D1SimplifiedGeometrySink_Impl, D2D1_BEZIER_SEGMENT, D2D1_FIGURE_BEGIN,
-                D2D1_FIGURE_END, D2D1_FIGURE_END_CLOSED, D2D1_PATH_SEGMENT, D2D_POINT_2F,
-            },
-            ID2D1SolidColorBrush,
+        Direct2D::Common::{
+            ID2D1SimplifiedGeometrySink_Impl, D2D1_BEZIER_SEGMENT, D2D1_FIGURE_BEGIN,
+            D2D1_FIGURE_END, D2D1_FIGURE_END_CLOSED, D2D1_PATH_SEGMENT, D2D_POINT_2F,
         },
         DirectWrite::{
             IDWriteInlineObject, IDWritePixelSnapping_Impl, IDWriteTextRenderer,
@@ -25,6 +22,8 @@ use windows::{
         },
     },
 };
+
+use crate::svg_color::ISvgColor;
 
 const SVG_NS: &'static str = "http://www.w3.org/2000/svg";
 
@@ -108,16 +107,15 @@ impl SvgTextRenderer {
     }
     fn get_color_from_brush(brush: &Option<IUnknown>) -> Option<String> {
         match brush {
-            Some(brush) => match brush.cast::<ID2D1SolidColorBrush>() {
-                Ok(solid_brush) => {
-                    let color = unsafe { solid_brush.GetColor() };
-                    Some(format!(
-                        "rgba({}, {}, {}, {})",
-                        (color.r * 255.0).round() as isize,
-                        (color.g * 255.0).round() as isize,
-                        (color.b * 255.0).round() as isize,
-                        color.a,
-                    ))
+            Some(brush) => match brush.cast::<ISvgColor>() {
+                Ok(color) => {
+                    let mut sink = csscolorparser::Color::default();
+                    unsafe {
+                        color
+                            .GetColor(&mut sink.r, &mut sink.g, &mut sink.b, &mut sink.a)
+                            .unwrap()
+                    };
+                    Some(sink.to_hex_string())
                 }
                 _ => None,
             },

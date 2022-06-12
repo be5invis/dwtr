@@ -3,12 +3,15 @@ use std::ffi::OsString;
 use windows::{
     core::Result,
     Win32::Graphics::DirectWrite::{
-        IDWriteFactory, IDWriteTextFormat, IDWriteTextLayout, DWRITE_FONT_STRETCH,
-        DWRITE_FONT_WEIGHT, DWRITE_TEXT_RANGE,
+        IDWriteFactory, IDWriteTextFormat, IDWriteTextLayout, DWRITE_FONT_FEATURE,
+        DWRITE_FONT_FEATURE_TAG, DWRITE_FONT_STRETCH, DWRITE_FONT_WEIGHT, DWRITE_TEXT_RANGE,
     },
 };
 
-use crate::document::{DocumentBody, DocumentContent, Style};
+use crate::{
+    document::{string_to_tag, DocumentBody, DocumentContent, Style},
+    svg_color::{ISvgColor, SvgColorImpl},
+};
 
 #[derive(Debug)]
 pub(crate) struct DocumentAnalyzer {
@@ -93,6 +96,7 @@ impl DocumentAnalyzer {
                 startPosition: style_run.wch_start as u32,
                 length: (style_run.wch_end - style_run.wch_start) as u32,
             };
+            // Apply styles to the layout
             if let Some(family_name) = &style.font_family {
                 let family_name = OsString::from(family_name);
                 unsafe { layout.SetFontFamilyName(family_name, range.clone())? }
@@ -105,6 +109,25 @@ impl DocumentAnalyzer {
             }
             if let Some(font_style) = &style.font_style {
                 unsafe { layout.SetFontStyle(font_style.clone().into(), range.clone())? }
+            }
+            if let Some(font_size) = &style.font_size {
+                unsafe { layout.SetFontSize(*font_size, range.clone())? }
+            }
+            if let Some(color) = &style.color {
+                let c = csscolorparser::parse(color).unwrap_or_default();
+                let brush: ISvgColor = SvgColorImpl::new(c).into();
+                unsafe { layout.SetDrawingEffect(brush, range.clone())? }
+            }
+            if !style.font_feature_settings.is_empty() {
+                let typography = unsafe { factory.CreateTypography()? };
+                for (feature, parameter) in style.font_feature_settings.iter() {
+                    let feature = DWRITE_FONT_FEATURE {
+                        nameTag: DWRITE_FONT_FEATURE_TAG(string_to_tag(feature)),
+                        parameter: *parameter,
+                    };
+                    unsafe { typography.AddFontFeature(&feature)? }
+                }
+                unsafe { layout.SetTypography(typography, range.clone())? }
             }
         }
         Ok(layout)

@@ -19,6 +19,7 @@ use crate::{document_analyzer::DocumentAnalyzer, font_loader::load_font_collecti
 mod document;
 mod document_analyzer;
 mod font_loader;
+mod svg_color;
 mod svg_text_render;
 
 #[derive(Debug, StructOpt)]
@@ -38,8 +39,6 @@ fn main() -> Result<()> {
     let file = File::open(opt.input.as_path()).unwrap();
     let reader = BufReader::new(file);
     let document: Document = serde_json::from_reader(reader).unwrap();
-
-    println!("{:?}", document);
 
     let factory = get_factory()?;
     let font_collection = load_font_collection(factory.cast()?, &document)?;
@@ -61,7 +60,6 @@ fn main() -> Result<()> {
     for body in document.body.iter() {
         let mut analyzer = DocumentAnalyzer::new();
         analyzer.analyze(&body.contents);
-        println!("{:?}", analyzer);
 
         let text_layout = analyzer.create_text_layout(
             factory.clone(),

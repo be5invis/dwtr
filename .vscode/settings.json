@@ -3,9 +3,11 @@
         "BEZIER",
         "beziers",
         "bidi",
+        "csscolorparser",
         "DWRITE",
         "evenodd",
         "FILETIME",
+        "HRESULT",
         "minidom",
         "structopt"
     ]
