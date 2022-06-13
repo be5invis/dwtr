@@ -132,6 +132,8 @@ impl SvgTextRenderer {
                 "viewBox",
                 format!("0 0 {} {}", self.canvas_width, self.canvas_height),
             )
+            .attr("width", format!("{}", self.canvas_width))
+            .attr("height", format!("{}", self.canvas_height))
             .append(defs)
             .append(glyphs)
             .build()
