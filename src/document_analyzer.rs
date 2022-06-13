@@ -84,7 +84,7 @@ impl DocumentAnalyzer {
                 &self.text,
                 format,
                 frame.right.unwrap_or(canvas_width) - frame.left.unwrap_or(0.0),
-                frame.bottom.unwrap_or(canvas_height) - frame.bottom.unwrap_or(0.0),
+                frame.bottom.unwrap_or(canvas_height) - frame.top.unwrap_or(0.0),
             )?
         };
         let layout: IDWriteTextLayout1 = layout.cast()?;
@@ -190,6 +190,8 @@ impl DocumentAnalyzer {
 
         let frame_cx = frame_left + factor_h * (frame_right - frame_left);
         let frame_cy = frame_top + factor_v * (frame_bottom - frame_top);
+
+        println!("{} {} -- {} {}", frame_cx, frame_cy, tm_cx, tm_cy);
 
         (frame_cx - tm_cx, frame_cy - tm_cy)
     }

@@ -75,14 +75,7 @@ fn main() -> Result<()> {
             );
             renderer.as_impl().set_offset(offset_x, offset_y);
         }
-        unsafe {
-            text_layout.Draw(
-                null(),
-                renderer.clone(),
-                frame.left.unwrap_or(0.0),
-                frame.top.unwrap_or(0.0),
-            )?
-        }
+        unsafe { text_layout.Draw(null(), renderer.clone(), 0.0, 0.0)? }
     }
 
     let mut out_stream: Box<dyn std::io::Write> = match opt.output {
