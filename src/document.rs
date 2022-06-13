@@ -39,8 +39,19 @@ pub(crate) struct DocumentFrame {
     pub(crate) horizontal_align: HAlign,
     #[serde(default)]
     pub(crate) vertical_align: VAlign,
+    #[serde(default = "default_line_height")]
+    pub(crate) line_height: f32,
+    #[serde(default = "default_baseline")]
+    pub(crate) baseline_offset: f32,
 
     pub(crate) contents: DocumentContent,
+}
+
+const fn default_line_height() -> f32 {
+    1.50
+}
+const fn default_baseline() -> f32 {
+    0.80
 }
 
 #[derive(Debug, Serialize, Deserialize)]

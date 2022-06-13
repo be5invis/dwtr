@@ -95,6 +95,13 @@ impl DocumentAnalyzer {
         let (read_dir, flow_dir) = frame.writing_mode.clone().into();
         unsafe { layout.SetReadingDirection(read_dir)? }
         unsafe { layout.SetFlowDirection(flow_dir)? }
+        unsafe {
+            layout.SetLineSpacing(
+                DWRITE_LINE_SPACING_METHOD_PROPORTIONAL,
+                frame.line_height,
+                frame.line_height * frame.baseline_offset,
+            )?
+        }
 
         // Set text styles
         for style_run in self.style_runs.iter() {
