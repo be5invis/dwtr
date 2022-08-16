@@ -19,7 +19,6 @@ struct SvgGlyph {
     path_id: usize,
     offset_x: f32,
     offset_y: f32,
-    co_scalar: f32,
 }
 
 impl SvgGlyph {
@@ -28,10 +27,7 @@ impl SvgGlyph {
             .attr("href", format!("#path{}", self.path_id))
             .attr(
                 "transform",
-                format!(
-                    "translate({} {}) scale({})",
-                    self.offset_x, self.offset_y, self.co_scalar
-                ),
+                format!("translate({} {})", self.offset_x, self.offset_y,),
             )
             .build()
     }
@@ -41,6 +37,7 @@ struct SvgRun {
     offset_x: f32,
     offset_y: f32,
     rotate_angle: f32,
+    scalar: f32,
     color: Option<String>,
     glyphs: Vec<SvgGlyph>,
 }
@@ -50,8 +47,11 @@ impl SvgRun {
             .attr(
                 "transform",
                 format!(
-                    "translate({} {}) rotate({})",
-                    self.offset_x, self.offset_y, self.rotate_angle
+                    "translate({} {}) rotate({}) scale({})",
+                    self.offset_x,
+                    self.offset_y,
+                    self.rotate_angle,
+                    1.0 / self.scalar
                 ),
             )
             .attr("fill", self.color.clone().unwrap_or(String::from("black")))
@@ -265,18 +265,18 @@ impl IDWriteTextRenderer1_Impl for SvgTextRenderer {
             let glyph_count = unsafe { (*glyph_run).glyphCount };
             let color = Self::get_color_from_brush(client_drawing_effect);
 
+            let scalar = (metrics.designUnitsPerEm as f32) / unsafe { (*glyph_run).fontEmSize };
+
             let mut run = SvgRun {
                 offset_x: baseline_origin_x + *self.offset_x.borrow(),
                 offset_y: baseline_origin_y + *self.offset_y.borrow(),
                 rotate_angle: dw_angle_to_angle(&orientation_angle, unsafe {
                     (*glyph_run).isSideways.as_bool()
                 }),
+                scalar,
                 color,
                 glyphs: Vec::new(),
             };
-
-            let scalar = (metrics.designUnitsPerEm as f32) / unsafe { (*glyph_run).fontEmSize };
-            let co_scalar = 1.0 / scalar;
 
             let geometry_sink: ID2D1SimplifiedGeometrySink = SvgGeometrySink::new(scalar).into();
             let geometry_sink_impl = geometry_sink.as_impl();
@@ -308,9 +308,8 @@ impl IDWriteTextRenderer1_Impl for SvgTextRenderer {
                 let path_id = self.add_path_def(geometry_sink_impl.reset());
                 run.glyphs.push(SvgGlyph {
                     path_id,
-                    offset_x,
-                    offset_y,
-                    co_scalar,
+                    offset_x: geometry_sink_impl.process_coord(offset_x),
+                    offset_y: geometry_sink_impl.process_coord(offset_y),
                 });
 
                 unsafe {
