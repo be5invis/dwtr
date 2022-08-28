@@ -39,6 +39,7 @@ struct SvgRun {
     rotate_angle: f32,
     scalar: f32,
     color: Option<String>,
+    source_text: String,
     glyphs: Vec<SvgGlyph>,
 }
 impl SvgRun {
@@ -55,6 +56,7 @@ impl SvgRun {
                 ),
             )
             .attr("fill", self.color.clone().unwrap_or(String::from("black")))
+            .attr("data-source-text", self.source_text.as_str())
             .append_all(self.glyphs.iter().map(|g| g.as_element()))
             .build()
     }
@@ -255,7 +257,7 @@ impl IDWriteTextRenderer1_Impl for SvgTextRenderer {
         orientation_angle: DWRITE_GLYPH_ORIENTATION_ANGLE,
         _measuring_mode: DWRITE_MEASURING_MODE,
         glyph_run: *const DWRITE_GLYPH_RUN,
-        _glyph_run_description: *const DWRITE_GLYPH_RUN_DESCRIPTION,
+        glyph_run_description: *const DWRITE_GLYPH_RUN_DESCRIPTION,
         client_drawing_effect: &Option<IUnknown>,
     ) -> Result<()> {
         if let Some(font_face) = unsafe { (*glyph_run).fontFace.clone() } {
@@ -275,6 +277,12 @@ impl IDWriteTextRenderer1_Impl for SvgTextRenderer {
                 }),
                 scalar,
                 color,
+                source_text: unsafe {
+                    String::from_utf16_lossy(std::slice::from_raw_parts(
+                        (*glyph_run_description).string.0,
+                        (*glyph_run_description).stringLength as usize,
+                    ))
+                },
                 glyphs: Vec::new(),
             };
 

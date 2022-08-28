@@ -82,6 +82,13 @@ fn main() -> Result<()> {
         Some(output) => Box::new(std::fs::File::create(output.as_path()).unwrap()),
         None => Box::new(std::io::stdout()),
     };
+
+    write!(
+        out_stream,
+        "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>\n"
+    )
+    .unwrap();
+
     renderer
         .as_impl()
         .into_xml()
