@@ -1,12 +1,11 @@
-use core::ptr::null;
+use clap::Parser;
 use document::Document;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::PathBuf;
-use structopt::StructOpt;
 use svg_text_render::SvgTextRenderer;
 use windows::{
-    core::{AsImpl, Interface, Result},
+    core::{AsImpl, Interface, Result, HSTRING, PCWSTR},
     Win32::Graphics::DirectWrite::*,
 };
 
@@ -18,7 +17,7 @@ mod font_loader;
 mod svg_color;
 mod svg_text_render;
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, clap::StructOpt)]
 #[structopt(name = "dwtr", about = "Text rendering utility (DWrite)")]
 struct Opt {
     /// Input file
@@ -41,13 +40,13 @@ fn main() -> Result<()> {
 
     let format = unsafe {
         factory.CreateTextFormat(
-            "Calibri",
-            font_collection,
+            PCWSTR(HSTRING::from("Calibri").as_ptr()),
+            &font_collection,
             DWRITE_FONT_WEIGHT(400),
             DWRITE_FONT_STYLE_NORMAL,
             DWRITE_FONT_STRETCH_NORMAL,
             24.0,
-            "en-us",
+            PCWSTR(HSTRING::from("en-us").as_ptr()),
         )?
     };
 
@@ -75,7 +74,7 @@ fn main() -> Result<()> {
             );
             renderer.as_impl().set_offset(offset_x, offset_y);
         }
-        unsafe { text_layout.Draw(null(), renderer.clone(), 0.0, 0.0)? }
+        unsafe { text_layout.Draw(None, &renderer, 0.0, 0.0)? }
     }
 
     let mut out_stream: Box<dyn std::io::Write> = match opt.output {
@@ -100,7 +99,7 @@ fn main() -> Result<()> {
 
 fn get_factory() -> Result<IDWriteFactory> {
     unsafe {
-        let factory_raw = DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, &IDWriteFactory7::IID)?;
+        let factory_raw = DWriteCreateFactory::<IDWriteFactory7>(DWRITE_FACTORY_TYPE_SHARED)?;
         let factory: IDWriteFactory = factory_raw.cast()?;
         Ok(factory)
     }

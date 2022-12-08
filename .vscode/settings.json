@@ -3,12 +3,17 @@
         "BEZIER",
         "beziers",
         "bidi",
+        "Calibri",
         "csscolorparser",
         "DWRITE",
+        "dwtr",
         "evenodd",
         "FILETIME",
         "HRESULT",
+        "HSTRING",
         "minidom",
-        "structopt"
+        "PCWSTR",
+        "structopt",
+        "Vtbl"
     ]
 }

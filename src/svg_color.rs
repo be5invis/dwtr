@@ -1,6 +1,6 @@
 #![allow(non_snake_case)]
 
-use windows::core::{implement, interface, IUnknown, IUnknownVtbl, HRESULT};
+use windows::core::{implement, interface, IUnknown, IUnknown_Vtbl, HRESULT};
 use windows::Win32::Foundation::S_OK;
 
 /// My interface

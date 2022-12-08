@@ -304,12 +304,12 @@ impl IDWriteTextRenderer1_Impl for SvgTextRenderer {
                     font_face.GetGlyphRunOutline(
                         (*glyph_run).fontEmSize,
                         (*glyph_run).glyphIndices.offset(i as isize),
-                        (*glyph_run).glyphAdvances.offset(i as isize),
-                        p_glyph_offset,
+                        Some((*glyph_run).glyphAdvances.offset(i as isize)),
+                        Some(p_glyph_offset),
                         1,
                         (*glyph_run).isSideways,
                         (*glyph_run).bidiLevel % 2 == 1,
-                        geometry_sink.clone(),
+                        &geometry_sink,
                     )?;
                 }
 

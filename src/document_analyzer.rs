@@ -1,7 +1,5 @@
-use std::ffi::OsString;
-
 use windows::{
-    core::{Interface, Result},
+    core::{IUnknown, Interface, Result, HSTRING, PCWSTR},
     Win32::Graphics::DirectWrite::*,
 };
 
@@ -82,7 +80,7 @@ impl DocumentAnalyzer {
         let layout = unsafe {
             factory.CreateTextLayout(
                 &self.text,
-                format,
+                &format,
                 frame.right.unwrap_or(canvas_width) - frame.left.unwrap_or(0.0),
                 frame.bottom.unwrap_or(canvas_height) - frame.top.unwrap_or(0.0),
             )?
@@ -115,8 +113,12 @@ impl DocumentAnalyzer {
             };
             // Apply styles to the layout
             if let Some(family_name) = &style.font_family {
-                let family_name = OsString::from(family_name);
-                unsafe { layout.SetFontFamilyName(family_name, range.clone())? }
+                unsafe {
+                    layout.SetFontFamilyName(
+                        PCWSTR(HSTRING::from(family_name).as_ptr()),
+                        range.clone(),
+                    )?
+                }
             }
             if let Some(font_weight) = &style.font_weight {
                 unsafe { layout.SetFontWeight(DWRITE_FONT_WEIGHT(*font_weight), range.clone())? }
@@ -133,11 +135,13 @@ impl DocumentAnalyzer {
             if let Some(color) = &style.color {
                 let c = csscolorparser::parse(color).unwrap_or_default();
                 let brush: ISvgColor = SvgColorImpl::new(c).into();
-                unsafe { layout.SetDrawingEffect(brush, range.clone())? }
+                let brush: IUnknown = brush.cast()?;
+                unsafe { layout.SetDrawingEffect(&brush, range.clone())? }
             }
             if let Some(lang) = &style.lang {
-                let lang = OsString::from(lang);
-                unsafe { layout.SetLocaleName(lang, range.clone())? }
+                unsafe {
+                    layout.SetLocaleName(PCWSTR(HSTRING::from(lang).as_ptr()), range.clone())?
+                }
             }
             if !style.font_feature_settings.is_empty() {
                 let typography = unsafe { factory.CreateTypography()? };
@@ -146,9 +150,9 @@ impl DocumentAnalyzer {
                         nameTag: DWRITE_FONT_FEATURE_TAG(string_to_tag(feature)),
                         parameter: *parameter,
                     };
-                    unsafe { typography.AddFontFeature(&feature)? }
+                    unsafe { typography.AddFontFeature(feature)? }
                 }
-                unsafe { layout.SetTypography(typography, range.clone())? }
+                unsafe { layout.SetTypography(&typography, range.clone())? }
             }
             if !style.font_variation_settings.is_empty() {
                 let mut axis_values: Vec<DWRITE_FONT_AXIS_VALUE> = Vec::new();

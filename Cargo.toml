@@ -14,15 +14,14 @@ minidom = "^0.14.0"
 quick-xml = "^0.22"
 serde = {version = "^1.0.137", features = ["derive"]}
 serde_json = "^1.0.81"
-structopt = "^0.3.26"
+clap = {version = "^3.2.23", features = ["derive"]}
 
 [dependencies.windows]
 features = [
-  "alloc",
   "interface",
   "implement",
   "Win32_Foundation",
   "Win32_Graphics_DirectWrite",
   "Win32_Graphics_Direct2D_Common",
 ]
-version = "0.37.0"
+version = "0.43.0"
