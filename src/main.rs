@@ -5,7 +5,8 @@ use std::io::BufReader;
 use std::path::PathBuf;
 use svg_text_render::SvgTextRenderer;
 use windows::{
-    core::{AsImpl, Interface, Result, HSTRING, PCWSTR},
+    core::{AsImpl, Interface, Result},
+    w,
     Win32::Graphics::DirectWrite::*,
 };
 
@@ -40,13 +41,13 @@ fn main() -> Result<()> {
 
     let format = unsafe {
         factory.CreateTextFormat(
-            PCWSTR(HSTRING::from("Calibri").as_ptr()),
+            w!("Calibri"),
             &font_collection,
             DWRITE_FONT_WEIGHT(400),
             DWRITE_FONT_STYLE_NORMAL,
             DWRITE_FONT_STRETCH_NORMAL,
             24.0,
-            PCWSTR(HSTRING::from("en-us").as_ptr()),
+            w!("en-us"),
         )?
     };
 
