@@ -66,7 +66,8 @@ fn main() -> Result<()> {
             frame,
         )?;
         {
-            let metrics = unsafe { text_layout.GetMetrics()? };
+            let mut metrics = DWRITE_TEXT_METRICS::default();
+            unsafe { text_layout.GetMetrics(&mut metrics)? };
             let (offset_x, offset_y) = DocumentAnalyzer::compute_layout_offset(
                 document.width,
                 document.height,

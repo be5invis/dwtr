@@ -26,7 +26,7 @@ impl SvgColorImpl {
 }
 impl ISvgColor_Impl for SvgColorImpl {
     unsafe fn GetColor(&self, pr: *mut f64, pg: *mut f64, pb: *mut f64, pa: *mut f64) -> HRESULT {
-        let (r, g, b, a) = self.color.rgba();
+        let [r, g, b, a] = self.color.to_array();
         *pr = r;
         *pg = g;
         *pb = b;

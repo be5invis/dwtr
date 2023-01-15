@@ -172,15 +172,22 @@ impl IDWritePixelSnapping_Impl for SvgTextRenderer {
     fn IsPixelSnappingDisabled(&self, _client_drawing_context: *const c_void) -> Result<BOOL> {
         Ok(false.into())
     }
-    fn GetCurrentTransform(&self, _client_drawing_context: *const c_void) -> Result<DWRITE_MATRIX> {
-        Ok(DWRITE_MATRIX {
-            m11: 1.0,
-            m12: 1.0,
-            m21: 1.0,
-            m22: 1.0,
-            dx: 0.0,
-            dy: 0.0,
-        })
+    fn GetCurrentTransform(
+        &self,
+        _client_drawing_context: *const core::ffi::c_void,
+        transform: *mut DWRITE_MATRIX,
+    ) -> windows::core::Result<()> {
+        unsafe {
+            *transform = DWRITE_MATRIX {
+                m11: 1.0,
+                m12: 1.0,
+                m21: 1.0,
+                m22: 1.0,
+                dx: 0.0,
+                dy: 0.0,
+            };
+        }
+        Ok(())
     }
     fn GetPixelsPerDip(&self, _client_drawing_context: *const c_void) -> Result<f32> {
         Ok(1.0)
@@ -260,7 +267,7 @@ impl IDWriteTextRenderer1_Impl for SvgTextRenderer {
         glyph_run_description: *const DWRITE_GLYPH_RUN_DESCRIPTION,
         client_drawing_effect: &Option<IUnknown>,
     ) -> Result<()> {
-        if let Some(font_face) = unsafe { (*glyph_run).fontFace.clone() } {
+        if let Some(font_face) = unsafe { (*glyph_run).fontFace.as_ref() } {
             let mut metrics = DWRITE_FONT_METRICS::default();
             unsafe { font_face.GetMetrics(&mut metrics) }
 

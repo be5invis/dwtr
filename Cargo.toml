@@ -18,10 +18,9 @@ clap = {version = "^3.2.23", features = ["derive"]}
 
 [dependencies.windows]
 features = [
-  "interface",
   "implement",
   "Win32_Foundation",
   "Win32_Graphics_DirectWrite",
   "Win32_Graphics_Direct2D_Common",
 ]
-version = "0.43.0"
+version = "0.44.0"
