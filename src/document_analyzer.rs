@@ -1,5 +1,5 @@
 use windows::{
-    core::{IUnknown, Interface, Result, HSTRING, PCWSTR},
+    core::{ComInterface, IUnknown, Result, HSTRING, PCWSTR},
     Win32::Graphics::DirectWrite::*,
 };
 

@@ -5,7 +5,7 @@ use std::io::BufReader;
 use std::path::PathBuf;
 use svg_text_render::SvgTextRenderer;
 use windows::{
-    core::{AsImpl, Interface, Result},
+    core::{AsImpl, ComInterface, Result},
     w,
     Win32::Graphics::DirectWrite::*,
 };

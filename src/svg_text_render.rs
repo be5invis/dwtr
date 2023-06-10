@@ -6,7 +6,7 @@ use std::{
     collections::{btree_map::Entry, BTreeMap},
 };
 use windows::{
-    core::{AsImpl, IUnknown, Interface, Result},
+    core::{AsImpl, ComInterface, IUnknown, Result},
     Win32::Foundation::BOOL,
     Win32::Graphics::{Direct2D::Common::*, DirectWrite::*},
 };
@@ -141,7 +141,7 @@ impl SvgTextRenderer {
             .build()
     }
 
-    fn get_color_from_brush(brush: &Option<IUnknown>) -> Option<String> {
+    fn get_color_from_brush(brush: Option<&IUnknown>) -> Option<String> {
         match brush {
             Some(brush) => match brush.cast::<ISvgColor>() {
                 Ok(color) => {
@@ -204,7 +204,7 @@ impl IDWriteTextRenderer_Impl for SvgTextRenderer {
         measuring_mode: DWRITE_MEASURING_MODE,
         glyph_run: *const DWRITE_GLYPH_RUN,
         glyph_run_description: *const DWRITE_GLYPH_RUN_DESCRIPTION,
-        client_drawing_effect: &Option<IUnknown>,
+        client_drawing_effect: Option<&IUnknown>,
     ) -> Result<()> {
         self.DrawGlyphRun2(
             client_drawing_context,
@@ -223,10 +223,10 @@ impl IDWriteTextRenderer_Impl for SvgTextRenderer {
         _client_drawing_context: *const c_void,
         _origin_x: f32,
         _origin_y: f32,
-        _inline_object: &Option<IDWriteInlineObject>,
+        _inline_object: Option<&IDWriteInlineObject>,
         _is_sideways: BOOL,
         _is_right_to_left: BOOL,
-        _client_drawing_effect: &Option<IUnknown>,
+        _client_drawing_effect: Option<&IUnknown>,
     ) -> Result<()> {
         Ok(())
     }
@@ -237,7 +237,7 @@ impl IDWriteTextRenderer_Impl for SvgTextRenderer {
         _baseline_origin_x: f32,
         _baseline_origin_y: f32,
         _underline: *const DWRITE_UNDERLINE,
-        _client_drawing_effect: &Option<IUnknown>,
+        _client_drawing_effect: Option<&IUnknown>,
     ) -> Result<()> {
         Ok(())
     }
@@ -248,7 +248,7 @@ impl IDWriteTextRenderer_Impl for SvgTextRenderer {
         _baseline_origin_x: f32,
         _baseline_origin_y: f32,
         _strike_through: *const DWRITE_STRIKETHROUGH,
-        _client_drawing_effect: &Option<IUnknown>,
+        _client_drawing_effect: Option<&IUnknown>,
     ) -> Result<()> {
         Ok(())
     }
@@ -265,7 +265,7 @@ impl IDWriteTextRenderer1_Impl for SvgTextRenderer {
         _measuring_mode: DWRITE_MEASURING_MODE,
         glyph_run: *const DWRITE_GLYPH_RUN,
         glyph_run_description: *const DWRITE_GLYPH_RUN_DESCRIPTION,
-        client_drawing_effect: &Option<IUnknown>,
+        client_drawing_effect: Option<&IUnknown>,
     ) -> Result<()> {
         if let Some(font_face) = unsafe { (*glyph_run).fontFace.as_ref() } {
             let mut metrics = DWRITE_FONT_METRICS::default();
@@ -349,10 +349,10 @@ impl IDWriteTextRenderer1_Impl for SvgTextRenderer {
         _origin_x: f32,
         _origin_y: f32,
         _orientation_angle: DWRITE_GLYPH_ORIENTATION_ANGLE,
-        _inline_object: &Option<IDWriteInlineObject>,
+        _inline_object: Option<&IDWriteInlineObject>,
         _is_sideways: BOOL,
         _is_right_to_left: BOOL,
-        _client_drawing_effect: &Option<IUnknown>,
+        _client_drawing_effect: Option<&IUnknown>,
     ) -> Result<()> {
         Ok(())
     }
@@ -364,7 +364,7 @@ impl IDWriteTextRenderer1_Impl for SvgTextRenderer {
         _baseline_origin_y: f32,
         _orientation_angle: DWRITE_GLYPH_ORIENTATION_ANGLE,
         _underline: *const DWRITE_UNDERLINE,
-        _client_drawing_effect: &Option<IUnknown>,
+        _client_drawing_effect: Option<&IUnknown>,
     ) -> Result<()> {
         Ok(())
     }
@@ -376,7 +376,7 @@ impl IDWriteTextRenderer1_Impl for SvgTextRenderer {
         _baseline_origin_y: f32,
         _orientation_angle: DWRITE_GLYPH_ORIENTATION_ANGLE,
         _strike_through: *const DWRITE_STRIKETHROUGH,
-        _client_drawing_effect: &Option<IUnknown>,
+        _client_drawing_effect: Option<&IUnknown>,
     ) -> Result<()> {
         Ok(())
     }
