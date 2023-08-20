@@ -1,9 +1,7 @@
 use core::ffi::c_void;
 use core::fmt::Write;
-use std::{
-    cell::RefCell,
-    collections::{btree_map::Entry, BTreeMap},
-};
+use indexmap::{map::Entry, IndexMap};
+use std::cell::RefCell;
 use svg::{node::element, Document, Node};
 use windows::{
     core::{AsImpl, ComInterface, IUnknown, Result},
@@ -64,7 +62,7 @@ impl SvgRun {
 
 struct SvgDataStorage {
     last_path_id: usize,
-    path_defs: BTreeMap<String, usize>,
+    path_defs: IndexMap<String, usize>,
     runs: Vec<SvgRun>,
 }
 
@@ -72,11 +70,14 @@ impl SvgDataStorage {
     fn new() -> Self {
         Self {
             last_path_id: 0,
-            path_defs: BTreeMap::new(),
+            path_defs: IndexMap::new(),
             runs: Vec::new(),
         }
     }
     fn add_path_def(&mut self, str: String) -> usize {
+        if str.is_empty() {
+            return 0;
+        }
         match self.path_defs.entry(str) {
             Entry::Occupied(o) => *o.get(),
             Entry::Vacant(v) => {
@@ -320,11 +321,13 @@ impl IDWriteTextRenderer1_Impl for SvgTextRenderer {
                 }
 
                 let path_id = self.add_path_def(geometry_sink_impl.reset());
-                run.glyphs.push(SvgGlyph {
-                    path_id,
-                    offset_x: geometry_sink_impl.process_coord(offset_x),
-                    offset_y: geometry_sink_impl.process_coord(offset_y),
-                });
+                if path_id > 0 {
+                    run.glyphs.push(SvgGlyph {
+                        path_id,
+                        offset_x: geometry_sink_impl.process_coord(offset_x),
+                        offset_y: geometry_sink_impl.process_coord(offset_y),
+                    });
+                }
 
                 unsafe {
                     let direction = if (*glyph_run).bidiLevel % 2 == 1 {
