@@ -1,10 +1,10 @@
 use core::ffi::c_void;
 use core::fmt::Write;
-use minidom::Element;
 use std::{
     cell::RefCell,
     collections::{btree_map::Entry, BTreeMap},
 };
+use svg::{node::element, Document, Node};
 use windows::{
     core::{AsImpl, ComInterface, IUnknown, Result},
     Win32::Foundation::BOOL,
@@ -13,8 +13,6 @@ use windows::{
 
 use crate::svg_color::ISvgColor;
 
-const SVG_NS: &'static str = "http://www.w3.org/2000/svg";
-
 struct SvgGlyph {
     path_id: usize,
     offset_x: f32,
@@ -22,14 +20,13 @@ struct SvgGlyph {
 }
 
 impl SvgGlyph {
-    fn as_element(&self) -> Element {
-        Element::builder("use", SVG_NS)
-            .attr("href", format!("#path{}", self.path_id))
-            .attr(
+    fn as_element(&self) -> element::Use {
+        element::Use::new()
+            .set("href", format!("#path{}", self.path_id))
+            .set(
                 "transform",
                 format!("translate({} {})", self.offset_x, self.offset_y,),
             )
-            .build()
     }
 }
 
@@ -43,9 +40,9 @@ struct SvgRun {
     glyphs: Vec<SvgGlyph>,
 }
 impl SvgRun {
-    fn as_element(&self) -> Element {
-        Element::builder("g", SVG_NS)
-            .attr(
+    fn as_element(&self) -> element::Group {
+        let mut g = element::Group::new()
+            .set(
                 "transform",
                 format!(
                     "translate({} {}) rotate({}) scale({})",
@@ -55,10 +52,13 @@ impl SvgRun {
                     1.0 / self.scalar
                 ),
             )
-            .attr("fill", self.color.clone().unwrap_or(String::from("black")))
-            .attr("data-source-text", self.source_text.as_str())
-            .append_all(self.glyphs.iter().map(|g| g.as_element()))
-            .build()
+            .set("fill", self.color.clone().unwrap_or(String::from("black")))
+            .set("data-source-text", self.source_text.as_str());
+
+        for glyph in &self.glyphs {
+            g.append(glyph.as_element());
+        }
+        g
     }
 }
 
@@ -113,32 +113,31 @@ impl SvgTextRenderer {
         self.offset_y.replace(y);
     }
 
-    pub(crate) fn into_xml(&self) -> Element {
+    pub(crate) fn into_xml(&self) -> Document {
         let store = self.store.borrow();
 
-        let defs = Element::builder("defs", SVG_NS)
-            .append_all(store.path_defs.iter().map(|(path, id)| {
-                Element::builder("path", SVG_NS)
-                    .attr("id", format!("path{}", id))
-                    .attr("d", path)
-                    .build()
-            }))
-            .build();
+        let mut defs = element::Definitions::new();
+        for (path_d, id) in &store.path_defs {
+            let path = element::Path::new()
+                .set("id", format!("path{}", id))
+                .set("d", path_d.clone());
+            defs.append(path);
+        }
 
-        let glyphs = Element::builder("g", SVG_NS)
-            .append_all(store.runs.iter().map(|g| g.as_element()))
-            .build();
-
-        Element::builder("svg", SVG_NS)
-            .attr(
+        let mut svg = Document::new()
+            .set(
                 "viewBox",
                 format!("0 0 {} {}", self.canvas_width, self.canvas_height),
             )
-            .attr("width", format!("{}", self.canvas_width))
-            .attr("height", format!("{}", self.canvas_height))
-            .append(defs)
-            .append(glyphs)
-            .build()
+            .set("width", self.canvas_width)
+            .set("height", self.canvas_height)
+            .add(defs);
+
+        for run in &store.runs {
+            svg.append(run.as_element());
+        }
+
+        svg
     }
 
     fn get_color_from_brush(brush: Option<&IUnknown>) -> Option<String> {

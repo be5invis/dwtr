@@ -5,15 +5,18 @@ use std::io::BufReader;
 use std::path::PathBuf;
 use svg_text_render::SvgTextRenderer;
 use windows::{
-    core::{AsImpl, ComInterface, Result},
+    core::{AsImpl, ComInterface},
     w,
     Win32::Graphics::DirectWrite::*,
 };
 
-use crate::{document_analyzer::DocumentAnalyzer, font_loader::load_font_collection};
+use crate::{
+    document_analyzer::DocumentAnalyzer, error::Result, font_loader::load_font_collection,
+};
 
 mod document;
 mod document_analyzer;
+mod error;
 mod font_loader;
 mod svg_color;
 mod svg_text_render;
@@ -32,9 +35,9 @@ struct Opt {
 
 fn main() -> Result<()> {
     let opt = Opt::from_args();
-    let file = File::open(opt.input.as_path()).unwrap();
+    let file = File::open(opt.input.as_path())?;
     let reader = BufReader::new(file);
-    let document: Document = serde_json::from_reader(reader).unwrap();
+    let document: Document = serde_json::from_reader(reader)?;
 
     let factory = get_factory()?;
     let font_collection = load_font_collection(factory.cast()?, &document)?;
@@ -87,14 +90,10 @@ fn main() -> Result<()> {
     write!(
         out_stream,
         "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>\n"
-    )
-    .unwrap();
+    )?;
 
-    renderer
-        .as_impl()
-        .into_xml()
-        .write_to(&mut out_stream)
-        .unwrap();
+    let svg = renderer.as_impl().into_xml();
+    svg::write(out_stream, &svg)?;
 
     Ok(())
 }

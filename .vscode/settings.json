@@ -15,5 +15,6 @@
         "PCWSTR",
         "structopt",
         "Vtbl"
-    ]
+    ],
+    "rust-analyzer.showUnlinkedFileNotification": false
 }
