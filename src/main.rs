@@ -17,6 +17,7 @@ use crate::{
 mod document;
 mod document_analyzer;
 mod error;
+mod escape;
 mod font_loader;
 mod svg_color;
 mod svg_text_render;

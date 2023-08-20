@@ -9,7 +9,7 @@ use windows::{
     Win32::Graphics::{Direct2D::Common::*, DirectWrite::*},
 };
 
-use crate::svg_color::ISvgColor;
+use crate::{escape::escape_str, svg_color::ISvgColor};
 
 struct SvgGlyph {
     path_id: usize,
@@ -51,7 +51,7 @@ impl SvgRun {
                 ),
             )
             .set("fill", self.color.clone().unwrap_or(String::from("black")))
-            .set("data-source-text", self.source_text.as_str());
+            .set("data-source-text", escape_str(&self.source_text));
 
         for glyph in &self.glyphs {
             g.append(glyph.as_element());
