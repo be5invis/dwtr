@@ -3,12 +3,8 @@ use document::Document;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::PathBuf;
-use svg_text_render::SvgTextRenderer;
-use windows::{
-    core::{AsImpl, ComInterface},
-    w,
-    Win32::Graphics::DirectWrite::*,
-};
+use svg_text_render::SvgDocumentRenderer;
+use windows::{core::ComInterface, w, Win32::Graphics::DirectWrite::*};
 
 use crate::{
     document_analyzer::DocumentAnalyzer, error::Result, font_loader::load_font_collection,
@@ -55,8 +51,7 @@ fn main() -> Result<()> {
         )?
     };
 
-    let renderer: IDWriteTextRenderer1 =
-        SvgTextRenderer::new(document.width, document.height).into();
+    let mut document_renderer = SvgDocumentRenderer::new(document.width, document.height);
 
     for frame in document.frames.iter() {
         let mut analyzer = DocumentAnalyzer::new();
@@ -69,18 +64,22 @@ fn main() -> Result<()> {
             document.height,
             frame,
         )?;
-        {
-            let mut metrics = DWRITE_TEXT_METRICS::default();
-            unsafe { text_layout.GetMetrics(&mut metrics)? };
-            let (offset_x, offset_y) = DocumentAnalyzer::compute_layout_offset(
-                document.width,
-                document.height,
-                frame,
-                &metrics,
-            );
-            renderer.as_impl().set_offset(offset_x, offset_y);
-        }
-        unsafe { text_layout.Draw(None, &renderer, 0.0, 0.0)? }
+
+        let mut metrics = DWRITE_TEXT_METRICS::default();
+        unsafe { text_layout.GetMetrics(&mut metrics)? };
+        let (offset_x, offset_y) = DocumentAnalyzer::compute_layout_offset(
+            document.width,
+            document.height,
+            frame,
+            &metrics,
+        );
+
+        let frame_renderer = document_renderer.create_frame_renderer(offset_x, offset_y);
+        frame_renderer.set_title(frame.title.clone());
+        frame_renderer.set_desc(frame.desc.clone());
+
+        let fr1: IDWriteTextRenderer1 = frame_renderer.into();
+        unsafe { text_layout.Draw(None, &fr1, 0.0, 0.0)? }
     }
 
     let mut out_stream: Box<dyn std::io::Write> = match opt.output {
@@ -93,7 +92,7 @@ fn main() -> Result<()> {
         "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>\n"
     )?;
 
-    let svg = renderer.as_impl().into_xml();
+    let svg = document_renderer.into_xml();
     svg::write(out_stream, &svg)?;
 
     Ok(())

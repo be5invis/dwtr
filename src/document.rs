@@ -31,6 +31,10 @@ pub(crate) struct DocumentFrame {
     pub(crate) right: Option<f32>,
     pub(crate) bottom: Option<f32>,
 
+    // Accessibility
+    pub(crate) title: Option<String>,
+    pub(crate) desc: Option<String>,
+
     #[serde(default)]
     pub(crate) text_align: TextAlign,
     #[serde(default)]

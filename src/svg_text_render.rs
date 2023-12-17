@@ -1,7 +1,7 @@
 use core::ffi::c_void;
 use core::fmt::Write;
 use indexmap::{map::Entry, IndexMap};
-use std::cell::RefCell;
+use std::{cell::RefCell, rc::Rc};
 use svg::{node::element, Document, Node};
 use windows::{
     core::{AsImpl, ComInterface, IUnknown, Result},
@@ -60,21 +60,50 @@ impl SvgRun {
     }
 }
 
-struct SvgDataStorage {
-    last_path_id: usize,
-    path_defs: IndexMap<String, usize>,
+pub(crate) struct SvgFrame {
     runs: Vec<SvgRun>,
+    frame_title: Option<String>,
+    frame_desc: Option<String>,
 }
 
-impl SvgDataStorage {
-    fn new() -> Self {
+impl SvgFrame {
+    pub(crate) fn new() -> Self {
+        Self {
+            runs: Vec::new(),
+            frame_desc: None,
+            frame_title: None,
+        }
+    }
+
+    fn as_element(&self) -> element::Group {
+        let mut g = element::Group::new();
+        if let Some(title) = &self.frame_title {
+            g.append(element::Title::new().add(svg::node::Text::new(title.clone())));
+        }
+        if let Some(desc) = &self.frame_desc {
+            g.append(element::Description::new().add(svg::node::Text::new(desc.clone())));
+        }
+        for run in &self.runs {
+            g.append(run.as_element());
+        }
+        g
+    }
+}
+
+pub(crate) struct SharedStore {
+    last_path_id: usize,
+    path_defs: IndexMap<String, usize>,
+}
+
+impl SharedStore {
+    pub(crate) fn new() -> Self {
         Self {
             last_path_id: 0,
             path_defs: IndexMap::new(),
-            runs: Vec::new(),
         }
     }
-    fn add_path_def(&mut self, str: String) -> usize {
+
+    pub(crate) fn add_path_def(&mut self, str: String) -> usize {
         if str.is_empty() {
             return 0;
         }
@@ -89,33 +118,41 @@ impl SvgDataStorage {
     }
 }
 
-#[windows::core::implement(IDWriteTextRenderer1)]
-pub(crate) struct SvgTextRenderer {
+pub(crate) struct SvgDocumentRenderer {
     canvas_width: f32,
     canvas_height: f32,
-    offset_x: RefCell<f32>,
-    offset_y: RefCell<f32>,
-    store: RefCell<SvgDataStorage>,
+    shared_store: Rc<RefCell<SharedStore>>,
+    frames: Vec<Rc<RefCell<SvgFrame>>>,
 }
 
-impl SvgTextRenderer {
+impl SvgDocumentRenderer {
     pub(crate) fn new(canvas_width: f32, canvas_height: f32) -> Self {
         Self {
             canvas_width,
             canvas_height,
-            offset_x: RefCell::new(0.0),
-            offset_y: RefCell::new(0.0),
-            store: RefCell::new(SvgDataStorage::new()),
+            shared_store: Rc::new(RefCell::new(SharedStore::new())),
+            frames: Vec::new(),
         }
     }
 
-    pub(crate) fn set_offset(&self, x: f32, y: f32) {
-        self.offset_x.replace(x);
-        self.offset_y.replace(y);
+    pub(crate) fn create_frame_renderer(
+        &mut self,
+        offset_x: f32,
+        offset_y: f32,
+    ) -> SvgFrameRenderer {
+        let frame_store = Rc::new(RefCell::new(SvgFrame::new()));
+        let frame_renderer = SvgFrameRenderer::new(
+            self.shared_store.clone(),
+            frame_store.clone(),
+            offset_x,
+            offset_y,
+        );
+        self.frames.push(frame_store);
+        frame_renderer
     }
 
     pub(crate) fn into_xml(&self) -> Document {
-        let store = self.store.borrow();
+        let store = self.shared_store.borrow();
 
         let mut defs = element::Definitions::new();
         for (path_d, id) in &store.path_defs {
@@ -134,11 +171,44 @@ impl SvgTextRenderer {
             .set("height", self.canvas_height)
             .add(defs);
 
-        for run in &store.runs {
-            svg.append(run.as_element());
+        for frame in &self.frames {
+            svg.append(frame.borrow().as_element());
         }
 
         svg
+    }
+}
+
+#[windows::core::implement(IDWriteTextRenderer1)]
+pub(crate) struct SvgFrameRenderer {
+    shared_store: Rc<RefCell<SharedStore>>,
+    frame_store: Rc<RefCell<SvgFrame>>,
+    // frame properties
+    offset_x: f32,
+    offset_y: f32,
+}
+
+impl SvgFrameRenderer {
+    pub(crate) fn new(
+        shared_store: Rc<RefCell<SharedStore>>,
+        frame_store: Rc<RefCell<SvgFrame>>,
+        offset_x: f32,
+        offset_y: f32,
+    ) -> Self {
+        Self {
+            shared_store,
+            frame_store,
+            offset_x,
+            offset_y,
+        }
+    }
+
+    pub(crate) fn set_title(&self, title: Option<String>) {
+        self.frame_store.borrow_mut().frame_title = title;
+    }
+
+    pub(crate) fn set_desc(&self, desc: Option<String>) {
+        self.frame_store.borrow_mut().frame_desc = desc;
     }
 
     fn get_color_from_brush(brush: Option<&IUnknown>) -> Option<String> {
@@ -159,16 +229,15 @@ impl SvgTextRenderer {
         }
     }
     fn add_path_def(&self, str: String) -> usize {
-        let mut store = self.store.borrow_mut();
-        store.add_path_def(str)
+        self.shared_store.borrow_mut().add_path_def(str)
     }
     fn push_run(&self, run: SvgRun) {
-        self.store.borrow_mut().runs.push(run);
+        self.frame_store.borrow_mut().runs.push(run);
     }
 }
 
 #[allow(non_snake_case)]
-impl IDWritePixelSnapping_Impl for SvgTextRenderer {
+impl IDWritePixelSnapping_Impl for SvgFrameRenderer {
     fn IsPixelSnappingDisabled(&self, _client_drawing_context: *const c_void) -> Result<BOOL> {
         Ok(false.into())
     }
@@ -195,7 +264,7 @@ impl IDWritePixelSnapping_Impl for SvgTextRenderer {
 }
 
 #[allow(non_snake_case)]
-impl IDWriteTextRenderer_Impl for SvgTextRenderer {
+impl IDWriteTextRenderer_Impl for SvgFrameRenderer {
     fn DrawGlyphRun(
         &self,
         client_drawing_context: *const c_void,
@@ -255,7 +324,7 @@ impl IDWriteTextRenderer_Impl for SvgTextRenderer {
 }
 
 #[allow(non_snake_case)]
-impl IDWriteTextRenderer1_Impl for SvgTextRenderer {
+impl IDWriteTextRenderer1_Impl for SvgFrameRenderer {
     fn DrawGlyphRun2(
         &self,
         _client_drawing_context: *const c_void,
@@ -277,8 +346,8 @@ impl IDWriteTextRenderer1_Impl for SvgTextRenderer {
             let scalar = (metrics.designUnitsPerEm as f32) / unsafe { (*glyph_run).fontEmSize };
 
             let mut run = SvgRun {
-                offset_x: baseline_origin_x + *self.offset_x.borrow(),
-                offset_y: baseline_origin_y + *self.offset_y.borrow(),
+                offset_x: baseline_origin_x + self.offset_x,
+                offset_y: baseline_origin_y + self.offset_y,
                 rotate_angle: dw_angle_to_angle(&orientation_angle, unsafe {
                     (*glyph_run).isSideways.as_bool()
                 }),
