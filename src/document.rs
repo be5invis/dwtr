@@ -34,6 +34,7 @@ pub(crate) struct DocumentFrame {
     // Accessibility
     pub(crate) title: Option<String>,
     pub(crate) desc: Option<String>,
+    pub(crate) copyable: Option<bool>,
 
     #[serde(default)]
     pub(crate) text_align: TextAlign,

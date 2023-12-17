@@ -32,10 +32,12 @@ struct SvgRun {
     offset_x: f32,
     offset_y: f32,
     rotate_angle: f32,
+    upm: f32,
     scalar: f32,
     color: Option<String>,
     source_text: String,
     glyphs: Vec<SvgGlyph>,
+    copyable: bool,
 }
 impl SvgRun {
     fn as_element(&self) -> element::Group {
@@ -53,6 +55,15 @@ impl SvgRun {
             .set("fill", self.color.clone().unwrap_or(String::from("black")))
             .set("data-source-text", escape_str(&self.source_text));
 
+        if self.copyable {
+            let mut text_element = element::Text::new()
+                .set("x", self.offset_x)
+                .set("y", self.offset_y)
+                .set("font-size", self.upm)
+                .set("fill", "transparent");
+            text_element.append(svg::node::Text::new(self.source_text.clone()));
+            g.append(text_element)
+        }
         for glyph in &self.glyphs {
             g.append(glyph.as_element());
         }
@@ -62,6 +73,7 @@ impl SvgRun {
 
 pub(crate) struct SvgFrame {
     runs: Vec<SvgRun>,
+    copyable: bool,
     frame_title: Option<String>,
     frame_desc: Option<String>,
 }
@@ -70,6 +82,7 @@ impl SvgFrame {
     pub(crate) fn new() -> Self {
         Self {
             runs: Vec::new(),
+            copyable: false,
             frame_desc: None,
             frame_title: None,
         }
@@ -206,9 +219,11 @@ impl SvgFrameRenderer {
     pub(crate) fn set_title(&self, title: Option<String>) {
         self.frame_store.borrow_mut().frame_title = title;
     }
-
     pub(crate) fn set_desc(&self, desc: Option<String>) {
         self.frame_store.borrow_mut().frame_desc = desc;
+    }
+    pub(crate) fn set_copyable(&self, copyable: bool) {
+        self.frame_store.borrow_mut().copyable = copyable;
     }
 
     fn get_color_from_brush(brush: Option<&IUnknown>) -> Option<String> {
@@ -351,6 +366,7 @@ impl IDWriteTextRenderer1_Impl for SvgFrameRenderer {
                 rotate_angle: dw_angle_to_angle(&orientation_angle, unsafe {
                     (*glyph_run).isSideways.as_bool()
                 }),
+                upm: metrics.designUnitsPerEm as f32,
                 scalar,
                 color,
                 source_text: unsafe {
@@ -360,6 +376,7 @@ impl IDWriteTextRenderer1_Impl for SvgFrameRenderer {
                     ))
                 },
                 glyphs: Vec::new(),
+                copyable: self.frame_store.borrow().copyable,
             };
 
             let geometry_sink: ID2D1SimplifiedGeometrySink = SvgGeometrySink::new(scalar).into();

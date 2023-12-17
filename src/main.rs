@@ -77,6 +77,7 @@ fn main() -> Result<()> {
         let frame_renderer = document_renderer.create_frame_renderer(offset_x, offset_y);
         frame_renderer.set_title(frame.title.clone());
         frame_renderer.set_desc(frame.desc.clone());
+        frame_renderer.set_copyable(frame.copyable.unwrap_or(false));
 
         let fr1: IDWriteTextRenderer1 = frame_renderer.into();
         unsafe { text_layout.Draw(None, &fr1, 0.0, 0.0)? }
