@@ -61,7 +61,7 @@ impl SvgRun {
                 .set("y", self.offset_y)
                 .set("font-size", self.upm)
                 .set("fill", "transparent");
-            text_element.append(svg::node::Text::new(self.source_text.clone()));
+            text_element.append(svg::node::Text::new(escape_str(&self.source_text)));
             g.append(text_element)
         }
         for glyph in &self.glyphs {
@@ -91,10 +91,10 @@ impl SvgFrame {
     fn as_element(&self) -> element::Group {
         let mut g = element::Group::new();
         if let Some(title) = &self.frame_title {
-            g.append(element::Title::new().add(svg::node::Text::new(title.clone())));
+            g.append(element::Title::new().add(svg::node::Text::new(escape_str(title))));
         }
         if let Some(desc) = &self.frame_desc {
-            g.append(element::Description::new().add(svg::node::Text::new(desc.clone())));
+            g.append(element::Description::new().add(svg::node::Text::new(escape_str(desc))));
         }
         for run in &self.runs {
             g.append(run.as_element());
