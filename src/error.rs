@@ -1,3 +1,4 @@
+#[allow(unused)]
 #[derive(Debug)]
 pub enum AppError {
     Windows(windows::core::Error),

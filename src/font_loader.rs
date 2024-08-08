@@ -2,7 +2,7 @@ use std::ffi::OsString;
 
 use crate::document::Document;
 use glob::glob;
-use windows::core::{ComInterface, Result, HSTRING};
+use windows::core::{Interface, Result, HSTRING};
 use windows::Win32::Foundation::BOOL;
 use windows::Win32::Graphics::DirectWrite::*;
 

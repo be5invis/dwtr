@@ -4,7 +4,7 @@ use indexmap::{map::Entry, IndexMap};
 use std::{cell::RefCell, rc::Rc};
 use svg::{node::element, Document, Node};
 use windows::{
-    core::{AsImpl, ComInterface, IUnknown, Result},
+    core::{AsImpl, IUnknown, Interface, Result},
     Win32::Foundation::BOOL,
     Win32::Graphics::{Direct2D::Common::*, DirectWrite::*},
 };
@@ -226,7 +226,7 @@ impl SvgFrameRenderer {
         self.frame_store.borrow_mut().copyable = copyable;
     }
 
-    fn get_color_from_brush(brush: Option<&IUnknown>) -> Option<String> {
+    fn get_color_from_brush(&self, brush: Option<&IUnknown>) -> Option<String> {
         match brush {
             Some(brush) => match brush.cast::<ISvgColor>() {
                 Ok(color) => {
@@ -252,7 +252,7 @@ impl SvgFrameRenderer {
 }
 
 #[allow(non_snake_case)]
-impl IDWritePixelSnapping_Impl for SvgFrameRenderer {
+impl IDWritePixelSnapping_Impl for SvgFrameRenderer_Impl {
     fn IsPixelSnappingDisabled(&self, _client_drawing_context: *const c_void) -> Result<BOOL> {
         Ok(false.into())
     }
@@ -279,7 +279,7 @@ impl IDWritePixelSnapping_Impl for SvgFrameRenderer {
 }
 
 #[allow(non_snake_case)]
-impl IDWriteTextRenderer_Impl for SvgFrameRenderer {
+impl IDWriteTextRenderer_Impl for SvgFrameRenderer_Impl {
     fn DrawGlyphRun(
         &self,
         client_drawing_context: *const c_void,
@@ -290,7 +290,8 @@ impl IDWriteTextRenderer_Impl for SvgFrameRenderer {
         glyph_run_description: *const DWRITE_GLYPH_RUN_DESCRIPTION,
         client_drawing_effect: Option<&IUnknown>,
     ) -> Result<()> {
-        self.DrawGlyphRun2(
+        IDWriteTextRenderer1_Impl::DrawGlyphRun(
+            self,
             client_drawing_context,
             baseline_origin_x,
             baseline_origin_y,
@@ -339,8 +340,8 @@ impl IDWriteTextRenderer_Impl for SvgFrameRenderer {
 }
 
 #[allow(non_snake_case)]
-impl IDWriteTextRenderer1_Impl for SvgFrameRenderer {
-    fn DrawGlyphRun2(
+impl IDWriteTextRenderer1_Impl for SvgFrameRenderer_Impl {
+    fn DrawGlyphRun(
         &self,
         _client_drawing_context: *const c_void,
         baseline_origin_x: f32,
@@ -356,7 +357,7 @@ impl IDWriteTextRenderer1_Impl for SvgFrameRenderer {
             unsafe { font_face.GetMetrics(&mut metrics) }
 
             let glyph_count = unsafe { (*glyph_run).glyphCount };
-            let color = Self::get_color_from_brush(client_drawing_effect);
+            let color = self.get_color_from_brush(client_drawing_effect);
 
             let scalar = (metrics.designUnitsPerEm as f32) / unsafe { (*glyph_run).fontEmSize };
 
@@ -380,7 +381,7 @@ impl IDWriteTextRenderer1_Impl for SvgFrameRenderer {
             };
 
             let geometry_sink: ID2D1SimplifiedGeometrySink = SvgGeometrySink::new(scalar).into();
-            let geometry_sink_impl = geometry_sink.as_impl();
+            let geometry_sink_impl = unsafe { geometry_sink.as_impl() };
 
             let mut offset_x = 0.0;
             let offset_y = 0.0;
@@ -431,7 +432,7 @@ impl IDWriteTextRenderer1_Impl for SvgFrameRenderer {
         Ok(())
     }
 
-    fn DrawInlineObject2(
+    fn DrawInlineObject(
         &self,
         _client_drawing_context: *const c_void,
         _origin_x: f32,
@@ -445,7 +446,7 @@ impl IDWriteTextRenderer1_Impl for SvgFrameRenderer {
         Ok(())
     }
 
-    fn DrawUnderline2(
+    fn DrawUnderline(
         &self,
         _client_drawing_context: *const c_void,
         _baseline_origin_x: f32,
@@ -457,7 +458,7 @@ impl IDWriteTextRenderer1_Impl for SvgFrameRenderer {
         Ok(())
     }
 
-    fn DrawStrikethrough2(
+    fn DrawStrikethrough(
         &self,
         _client_drawing_context: *const c_void,
         _baseline_origin_x: f32,
@@ -506,7 +507,7 @@ impl SvgGeometrySink {
 }
 
 #[allow(non_snake_case)]
-impl ID2D1SimplifiedGeometrySink_Impl for SvgGeometrySink {
+impl ID2D1SimplifiedGeometrySink_Impl for SvgGeometrySink_Impl {
     fn SetFillMode(&self, _fill_mode: D2D1_FILL_MODE) {}
     fn SetSegmentFlags(&self, _flags: D2D1_PATH_SEGMENT) {}
     fn BeginFigure(&self, start_point: &D2D_POINT_2F, _figure_begin: D2D1_FIGURE_BEGIN) {

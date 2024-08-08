@@ -4,7 +4,10 @@ use std::fs::File;
 use std::io::BufReader;
 use std::path::PathBuf;
 use svg_text_render::SvgDocumentRenderer;
-use windows::{core::ComInterface, w, Win32::Graphics::DirectWrite::*};
+use windows::{
+    core::{w, Interface},
+    Win32::Graphics::DirectWrite::*,
+};
 
 use crate::{
     document_analyzer::DocumentAnalyzer, error::Result, font_loader::load_font_collection,
@@ -18,20 +21,20 @@ mod font_loader;
 mod svg_color;
 mod svg_text_render;
 
-#[derive(Debug, clap::StructOpt)]
-#[structopt(name = "dwtr", about = "Text rendering utility (DWrite)")]
+#[derive(Debug, clap::Parser)]
+#[command(name = "dwtr", about = "Text rendering utility (DWrite)")]
 struct Opt {
     /// Input file
-    #[structopt(parse(from_os_str))]
+    #[arg()]
     input: PathBuf,
 
     /// Output file, stdout if not present
-    #[structopt(short, long, parse(from_os_str))]
+    #[arg(short, long)]
     output: Option<PathBuf>,
 }
 
 fn main() -> Result<()> {
-    let opt = Opt::from_args();
+    let opt = Opt::parse();
     let file = File::open(opt.input.as_path())?;
     let reader = BufReader::new(file);
     let document: Document = serde_json::from_reader(reader)?;
